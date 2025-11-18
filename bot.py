@@ -28,6 +28,7 @@ CHANNEL_ID = 1430468986558091277
 OWNER_ROLE_ID = 1438117792539873370
 ADMIN_ROLE_ID = 1430468984343363739
 MODO_ROLE_ID = 1430468984343363738
+BOT_ROLE_ID = 1430468984272191572
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -95,7 +96,7 @@ async def bumpnow(ctx):
 async def on_message(message):
     global last_bump_time
 
-    if message.author != bot.user and any(role.id in [OWNER_ROLE_ID, ADMIN_ROLE_ID, MODO_ROLE_ID] for role in message.author.roles):
+    if message.author != bot.user and any(role.id in [OWNER_ROLE_ID, ADMIN_ROLE_ID, MODO_ROLE_ID, BOT_ROLE_ID] for role in message.author.roles):
         # Vérifier si le message contient /bump
         if "/bump" in message.content.lower():
             print(f"{message.author} a fait /bump, mise à jour du timer")
@@ -116,4 +117,5 @@ async def on_message(message):
 # Lancer le bot
 # =======================
 bot.run(TOKEN)
+
 
