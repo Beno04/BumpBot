@@ -26,8 +26,7 @@ Thread(target=run).start()
 TOKEN = os.environ["TOKEN"]
 CHANNEL_ID = 1431277019668156486
 OWNER_ROLE_ID = 1411777383996063834
-BOT_ROLE_ID = 1431274301209837691
-PROBOT_ID = 282859044593598464
+DISBOARD_ID = 302050872383242240
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -95,10 +94,10 @@ async def on_message(message):
         await bot.process_commands(message)
         return
 
-    # ========== CAS 2 : PROBOT ENVOIE UN MESSAGE DANS LE SALON ==========
-    if message.author.id == PROBOT_ID and message.channel.id == CHANNEL_ID:
+    # CAS : DISBOARD ENVOIE UN MESSAGE DANS LE SALON
+    if message.author.id == DISBOARD_ID and message.channel.id == CHANNEL_ID:
         last_bump_time = datetime.now()
-        print("✔ ProBot a envoyé un message, timer démarré !")
+        print("✔ Disboard a bump, timer démarré !")
 
         # Supprimer d'éventuels anciens rappels
         if isinstance(message.channel, discord.TextChannel):
@@ -122,7 +121,7 @@ async def status(ctx):
     if last_bump_time is None:
         embed = discord.Embed(
             title="📊 Statut du Bot",
-            description="Aucun /top n'a encore été détecté ou ProBot n'a pas encore envoyé de message.",
+            description="Aucun bump n'a encore été détecté.",
             color=0xED4245
         )
         embed.add_field(name="État", value="🔴 Inactif")
@@ -142,7 +141,7 @@ async def status(ctx):
     embed.add_field(name="Temps avant le prochain rappel :", value=f"{remaining} secondes", inline=False)
     embed.add_field(name="État :", value="🟢 Prêt pour le prochain rappel")
 
-    embed.set_footer(text="Le timer se déclenche automatiquement à l'envoi de ProBot")
+    embed.set_footer(text="Le timer se déclenche automatiquement à l'envoi de Disboard")
     await ctx.send(embed=embed)
 
 # =======================
