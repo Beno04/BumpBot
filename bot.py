@@ -27,6 +27,7 @@ TOKEN = os.environ["TOKEN"]
 CHANNEL_ID = 1431277019668156486
 OWNER_ROLE_ID = 1411777383996063834
 BOT_ROLE_ID = 1431274301209837691
+PROBOT_ID = 282859044593598464
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -35,14 +36,12 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 scheduler_started = False
 last_bump_time = None
 
-
 # =======================
 # READY
 # =======================
 @bot.event
 async def on_ready():
     global scheduler_started
-
     print(f"Connecté en tant que {bot.user}")
 
     if not scheduler_started:
@@ -52,9 +51,8 @@ async def on_ready():
     else:
         print("Scheduler déjà actif, ignoré.")
 
-
 # =======================
-# SCHEDULER CORRIGÉ
+# SCHEDULER
 # =======================
 async def bump_scheduler():
     await bot.wait_until_ready()
@@ -73,7 +71,6 @@ async def bump_scheduler():
 
         next_run = last_bump_time + timedelta(minutes=2)
         now = datetime.now()
-
         wait_seconds = (next_run - now).total_seconds()
 
         if wait_seconds > 0:
@@ -87,14 +84,19 @@ async def bump_scheduler():
         last_bump_time = None
         await asyncio.sleep(5)
 
-
 # =======================
 # MESSAGE / BUMP
 # =======================
-PROBOT_ID = 282859044593598464
-
 @bot.event
 async def on_message(message):
+    global last_bump_time
+
+    # On ignore les messages du bot lui-même
+    if message.author.id == bot.user.id:
+        await bot.process_commands(message)
+        return
+
+    # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
     if message.content.startswith("/top"):
         channel = bot.get_channel(CHANNEL_ID)
         if isinstance(channel, discord.TextChannel):
@@ -105,42 +107,19 @@ async def on_message(message):
                 color=0x5865F2
             )
             embed.set_footer(text="En attente du résultat du /top")
-            await channel.send(embed=embed)  # ✅ ici c'est OK
-
-    # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
-    # (Ton bot annonce "Prochain top dans 2min")
-if message.content.startswith("/top"):
-    channel = bot.get_channel(CHANNEL_ID)
-    if isinstance(channel, discord.TextChannel):
-        embed = discord.Embed(
-            title="⏳ Timer lancé",
-            description="Le bot attend la réponse de **ProBot**...\n"
-                        "Le rappel sera envoyé **2 minutes après** la confirmation.",
-            color=0x5865F2
-        )
-        embed.set_footer(text="En attente du résultat du /top")
-
-        await channel.send(embed=embed)
-
-
+            await channel.send(embed=embed)
 
     # ========== CAS 2 : PROBOT ENVOIE SON RÉSULTAT ==========
     if message.author.id == PROBOT_ID:
-
-        # ProBot répond presque toujours avec un embed
         if message.embeds:
             embed = message.embeds[0]
             title = (embed.title or "").lower()
             description = (embed.description or "").lower()
-
-            # Détection du message de résultat du /top
             if any(keyword in title for keyword in ["top", "rank", "invite"]) or \
                any(keyword in description for keyword in ["top", "rank", "invite"]):
-
                 print("✔ ProBot a confirmé le /top, timer lancé.")
                 last_bump_time = datetime.now()
 
-                # Supprime ton ancien message de rappel
                 channel = message.channel
                 if isinstance(channel, discord.TextChannel):
                     async for msg in channel.history(limit=50):
@@ -151,11 +130,12 @@ if message.content.startswith("/top"):
                                 pass
                             break
 
-                await bot.process_commands(message)
-                return
-
+    # Toujours traiter les commandes
     await bot.process_commands(message)
 
+# =======================
+# STATUS COMMAND
+# =======================
 @bot.command()
 async def status(ctx):
     global last_bump_time
@@ -170,22 +150,18 @@ async def status(ctx):
         await ctx.send(embed=embed)
         return
 
-    # Calcul du temps depuis le dernier /top
     now = datetime.now()
     elapsed = now - last_bump_time
     seconds = elapsed.total_seconds()
-
     remaining = max(0, 120 - int(seconds))  # 2 min = 120 sec
 
     embed = discord.Embed(
         title="📊 Statut du Bot",
         color=0x57F287 if remaining == 0 else 0xFEE75C
     )
-
     embed.add_field(name="Dernier /top détecté il y a :", value=f"{int(seconds)} secondes", inline=False)
     embed.add_field(name="Temps avant le prochain rappel :", value=f"{remaining} secondes", inline=False)
     embed.add_field(name="État :", value="🟢 En attente du prochain rappel" if remaining > 0 else "🟢 Prêt !")
-
     embed.set_footer(text="Utilisez /top avec ProBot pour relancer le timer")
 
     await ctx.send(embed=embed)
@@ -194,9 +170,3 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
-
-
-
-
-
-
