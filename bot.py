@@ -91,27 +91,63 @@ async def bump_scheduler():
 # =======================
 # MESSAGE / BUMP
 # =======================
+PROBOT_ID = 282859044593598464
+
 @bot.event
 async def on_message(message):
     global last_bump_time
 
+    # On ignore les messages du bot lui-même
+    if message.author.id == bot.user.id:
+        await bot.process_commands(message)
+        return
+
+    # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
+    # (Ton bot annonce "Prochain top dans 2min")
     if not message.author.bot and hasattr(message.author, "roles"):
         if any(role.id == OWNER_ROLE_ID for role in message.author.roles):
-            if "/top" in message.content.lower():
-
-                # ⏱️ Timer de 2 minutes démarré
-                last_bump_time = datetime.now()
-                print("Bump détecté, timer relancé.")
-
-                # 📢 Message d’annonce
+            if message.content.startswith("/top"):
                 channel = bot.get_channel(CHANNEL_ID)
-                await channel.send("⏳ **Prochain bump dans 2 minutes...**")
+                if isinstance(channel, discord.TextChannel):
+                    await channel.send("⏳ **Prochain /top dans 2 minutes...**")
+                # On NE démarre pas encore le timer, on attend la réponse de ProBot
+                await bot.process_commands(message)
+                return
+
+    # ========== CAS 2 : PROBOT ENVOIE SON RÉSULTAT ==========
+    if message.author.id == PROBOT_ID:
+
+        # ProBot répond presque toujours avec un embed
+        if message.embeds:
+            embed = message.embeds[0]
+            title = (embed.title or "").lower()
+            description = (embed.description or "").lower()
+
+            # Détection du message de résultat du /top
+            if any(keyword in title for keyword in ["top", "rank", "invite"]) or \
+               any(keyword in description for keyword in ["top", "rank", "invite"]):
+
+                print("✔ ProBot a confirmé le /top, timer lancé.")
+                last_bump_time = datetime.now()
+
+                # Supprime ton ancien message de rappel
+                channel = message.channel
+                if isinstance(channel, discord.TextChannel):
+                    async for msg in channel.history(limit=50):
+                        if msg.author == bot.user and "n’oubliez pas de faire" in msg.content.lower():
+                            try:
+                                await msg.delete()
+                            except:
+                                pass
+                            break
+
+                await bot.process_commands(message)
+                return
 
     await bot.process_commands(message)
-
-
 # =======================
 # Lancement
 # =======================
 bot.run(TOKEN)
+
 
