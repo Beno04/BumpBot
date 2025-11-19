@@ -131,21 +131,36 @@ async def status(ctx):
     now = datetime.now()
     elapsed = now - last_bump_time
     seconds = int(elapsed.total_seconds())
-    remaining = max(0, 120 - seconds)
+
+    TOTAL_WAIT = 7200  # ⏳ 2 heures = 7200 secondes
+    remaining = max(0, TOTAL_WAIT - seconds)
 
     embed = discord.Embed(
         title="📊 Statut du Bot",
         color=0x57F287
     )
-    embed.add_field(name="Dernier bump détecté il y a :", value=f"{seconds} secondes", inline=False)
-    embed.add_field(name="Temps avant le prochain rappel :", value=f"{remaining} secondes", inline=False)
-    embed.add_field(name="État :", value="🟢 Prêt pour le prochain rappel")
 
-    embed.set_footer(text="Le timer se déclenche automatiquement à l'envoi de Disboard")
+    embed.add_field(
+        name="Dernier bump détecté il y a :",
+        value=f"{seconds} secondes",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Temps avant le prochain rappel :",
+        value=f"{remaining} secondes",
+        inline=False
+    )
+
+    state = "🟢 Timer en cours" if remaining > 0 else "🟢 Prêt pour un nouveau bump"
+    embed.add_field(name="État :", value=state)
+
+    embed.set_footer(text="Le timer se déclenche automatiquement quand Disboard confirme /bump")
     await ctx.send(embed=embed)
 
 # =======================
 # Lancement
 # =======================
 bot.run(TOKEN)
+
 
