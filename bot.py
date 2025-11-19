@@ -37,7 +37,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # =======================
 # Gestion du bump dynamique
 # =======================
-last_bump_time = None  # Heure du dernier bump
+last_bump_time = datetime.now()
 
 @bot.event
 async def on_ready():
@@ -117,5 +117,6 @@ async def on_message(message):
 # Lancer le bot
 # =======================
 bot.run(TOKEN)
+
 
 
