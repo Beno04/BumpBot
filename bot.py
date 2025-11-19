@@ -104,15 +104,23 @@ async def on_message(message):
 
     # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
     # (Ton bot annonce "Prochain top dans 2min")
-    if not message.author.bot and hasattr(message.author, "roles"):
-        if any(role.id == OWNER_ROLE_ID for role in message.author.roles):
-            if message.content.startswith("/top"):
-                channel = bot.get_channel(CHANNEL_ID)
-                if isinstance(channel, discord.TextChannel):
-                    await channel.send("⏳ **Prochain /top dans 2 minutes...**")
-                # On NE démarre pas encore le timer, on attend la réponse de ProBot
-                await bot.process_commands(message)
-                return
+    if message.content.startswith("/top"):
+    channel = bot.get_channel(CHANNEL_ID)
+    if isinstance(channel, discord.TextChannel):
+
+        embed = discord.Embed(
+            title="⏳ Timer lancé",
+            description="Le bot attend la réponse de **ProBot**...\n"
+                        "Le rappel sera envoyé **2 minutes après** la confirmation.",
+            color=0x5865F2
+        )
+        embed.set_footer(text="En attente du résultat du /top")
+
+        await channel.send(embed=embed)
+
+    await bot.process_commands(message)
+    return
+
 
     # ========== CAS 2 : PROBOT ENVOIE SON RÉSULTAT ==========
     if message.author.id == PROBOT_ID:
@@ -145,9 +153,45 @@ async def on_message(message):
                 return
 
     await bot.process_commands(message)
+
+@bot.command()
+async def status(ctx):
+    global last_bump_time
+
+    if last_bump_time is None:
+        embed = discord.Embed(
+            title="📊 Statut du Bot",
+            description="Aucun `/top` n'a encore été détecté.",
+            color=0xED4245
+        )
+        embed.add_field(name="État", value="🔴 Inactif")
+        await ctx.send(embed=embed)
+        return
+
+    # Calcul du temps depuis le dernier /top
+    now = datetime.now()
+    elapsed = now - last_bump_time
+    seconds = elapsed.total_seconds()
+
+    remaining = max(0, 120 - int(seconds))  # 2 min = 120 sec
+
+    embed = discord.Embed(
+        title="📊 Statut du Bot",
+        color=0x57F287 if remaining == 0 else 0xFEE75C
+    )
+
+    embed.add_field(name="Dernier /top détecté il y a :", value=f"{int(seconds)} secondes", inline=False)
+    embed.add_field(name="Temps avant le prochain rappel :", value=f"{remaining} secondes", inline=False)
+    embed.add_field(name="État :", value="🟢 En attente du prochain rappel" if remaining > 0 else "🟢 Prêt !")
+
+    embed.set_footer(text="Utilisez /top avec ProBot pour relancer le timer")
+
+    await ctx.send(embed=embed)
+
 # =======================
 # Lancement
 # =======================
 bot.run(TOKEN)
+
 
 
