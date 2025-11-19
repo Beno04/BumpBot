@@ -7,7 +7,7 @@ from flask import Flask
 from threading import Thread
 
 # =======================
-# Flask pour 24/7 uptime
+# Flask (keepalive)
 # =======================
 app = Flask('')
 
@@ -21,102 +21,103 @@ def run():
 Thread(target=run).start()
 
 # =======================
-# Bot Discord
+# Bot
 # =======================
 TOKEN = os.environ["TOKEN"]
-CHANNEL_ID = 1430468986558091277
-OWNER_ROLE_ID = 1438117792539873370
-ADMIN_ROLE_ID = 1430468984343363739
-MODO_ROLE_ID = 1430468984343363738
-BOT_ROLE_ID = 1430468984272191572
+CHANNEL_ID = 1431277019668156486
+OWNER_ROLE_ID = 1411777383996063834
+BOT_ROLE_ID = 1431274301209837691
 
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# =======================
-# Gestion du bump dynamique
-# =======================
-last_bump_time = datetime.now()
+# Empêche le scheduler d'être lancé en double
+scheduler_started = False
 
+# Dernier bump
+last_bump_time = None
+
+
+# =======================
+# READY
+# =======================
 @bot.event
 async def on_ready():
-    print(f"Connecté en tant que {bot.user}")
-    bot.loop.create_task(bump_scheduler())
+    global scheduler_started
 
+    print(f"Connecté en tant que {bot.user}")
+
+    # N’EXÉCUTE LE SCHEDULER QU’UNE SEULE FOIS
+    if not scheduler_started:
+        print("Lancement du scheduler bump...")
+        scheduler_started = True
+        bot.loop.create_task(bump_scheduler())
+    else:
+        print("Scheduler déjà actif, ignoré.")
+
+
+# =======================
+# SCHEDULER CORRIGÉ
+# =======================
 async def bump_scheduler():
     await bot.wait_until_ready()
     channel = bot.get_channel(CHANNEL_ID)
+
     if not isinstance(channel, discord.TextChannel):
-        print(f"CHANNEL_ID {CHANNEL_ID} n'est pas un TextChannel !")
+        print("Erreur channel invalide.")
         return
 
     global last_bump_time
+
     while True:
+
+        # Si aucun bump n'a été fait, on attend
         if last_bump_time is None:
-            # Si aucun bump n'a encore eu lieu, on attend 5 min
-            await asyncio.sleep(300)
+            await asyncio.sleep(30)
             continue
 
         next_run = last_bump_time + timedelta(hours=2)
         now = datetime.now()
 
-        # Si on est entre minuit et 08:00, attendre 08:00
-        if next_run.hour >= 24:
-            tomorrow = now + timedelta(days=1)
-            next_run = tomorrow.replace(hour=8, minute=0, second=0, microsecond=0)
+        # Plage horaire (pas avant 8h)
         if next_run.hour < 8:
-            next_run = next_run.replace(hour=8, minute=0, second=0, microsecond=0)
+            next_run = next_run.replace(hour=8, minute=0, second=0)
 
         wait_seconds = (next_run - now).total_seconds()
         if wait_seconds > 0:
-            print(f"Prochain rappel à {next_run}")
+            print(f"Rappel prévu pour {next_run}")
             await asyncio.sleep(wait_seconds)
 
+        # On renvoie UNE SEULE fois
         current_hour = datetime.now().hour
         if 8 <= current_hour < 24:
-            owner_mention = f"<@&{OWNER_ROLE_ID}>"
-            admin_mention = f"<@&{ADMIN_ROLE_ID}>"
-            await channel.send(f"⏰ N’oubliez pas de faire **/bump** {owner_mention} {admin_mention} !")
+            owner = f"<@&{OWNER_ROLE_ID}>"
+            admin = f"<@&{ADMIN_ROLE_ID}>"
+            await channel.send(f"⏰ N’oubliez pas de faire **/bump** {owner} {admin} !")
 
-# =====================================
-# Commande test pour envoyer le rappel
-# =====================================
-@bot.command()
-async def bumpnow(ctx):
-    if isinstance(ctx.channel, discord.TextChannel):
-        owner_mention = f"<@&{OWNER_ROLE_ID}>"
-        admin_mention = f"<@&{ADMIN_ROLE_ID}>"
-        await ctx.send(f"⏰ Test : n’oubliez pas de faire **/bump** {owner_mention} {admin_mention} !")
+        # Empêche l'envoi multiple
+        last_bump_time = None
+        await asyncio.sleep(5)
 
-# =====================================
-# Détecter le bump d’un Admin ou Owner
-# =====================================
+
+# =======================
+# MESSAGE / BUMP
+# =======================
 @bot.event
 async def on_message(message):
     global last_bump_time
 
-    if message.author != bot.user and any(role.id in [OWNER_ROLE_ID, ADMIN_ROLE_ID, MODO_ROLE_ID, BOT_ROLE_ID] for role in message.author.roles):
-        # Vérifier si le message contient /bump
-        if "/bump" in message.content.lower():
-            print(f"{message.author} a fait /bump, mise à jour du timer")
-            last_bump_time = datetime.now()
-
-            # Supprimer le dernier message du bot contenant le rappel
-            channel = message.channel
-            if isinstance(channel, discord.TextChannel):
-                async for msg in channel.history(limit=50):
-                    if msg.author == bot.user and "n’oubliez pas de faire /bump" in msg.content:
-                        await msg.delete()
-                        print("Message du bot supprimé après bump")
-                        break
+    if not message.author.bot and hasattr(message.author, "roles"):
+        if any(role.id in [OWNER_ROLE_ID] for role in message.author.roles):
+            if "/bump" in message.content.lower():
+                last_bump_time = datetime.now()
+                print("Bump détecté, timer relancé.")
 
     await bot.process_commands(message)
 
+
 # =======================
-# Lancer le bot
+# Lancement
 # =======================
 bot.run(TOKEN)
-
-
-
