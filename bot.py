@@ -36,6 +36,25 @@ scheduler_started = False
 last_bump_time = None
 
 # =======================
+# Formatage du temps
+# =======================
+def format_time(seconds):
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+# =======================
+# Barre de progression
+# =======================
+def progress_bar(current, total, size=20):
+    ratio = current / total
+    filled = int(ratio * size)
+    empty = size - filled
+    percent = int(ratio * 100)
+    return f"[{'█'*filled}{'░'*empty}] {percent}%"
+
+# =======================
 # READY
 # =======================
 @bot.event
@@ -51,7 +70,7 @@ async def on_ready():
         print("Scheduler déjà actif, ignoré.")
 
 # =======================
-# SCHEDULER
+# SCHEDULER (2h)
 # =======================
 async def bump_scheduler():
     await bot.wait_until_ready()
@@ -78,7 +97,7 @@ async def bump_scheduler():
         # Envoi du rappel
         await channel.send(f"⏰ N’oubliez pas de faire **/bump** <@&{ADMIN_ROLE_ID}> !")
 
-        # Reset après envoi
+        # Reset
         last_bump_time = None
         await asyncio.sleep(5)
 
@@ -89,30 +108,29 @@ async def bump_scheduler():
 async def on_message(message):
     global last_bump_time
 
-    # Ignorer les messages du bot lui-même
+    # Ignorer le bot
     if message.author.id == bot.user.id:
         await bot.process_commands(message)
         return
 
-    # CAS : DISBOARD ENVOIE UN MESSAGE DANS LE SALON
+    # Détection du bump de Disboard
     if message.author.id == DISBOARD_ID and message.channel.id == CHANNEL_ID:
         last_bump_time = datetime.now()
         print("✔ Disboard a bump, timer démarré !")
 
-        # Supprimer d'éventuels anciens rappels
-        if isinstance(message.channel, discord.TextChannel):
-            async for msg in message.channel.history(limit=50):
-                if msg.author == bot.user and "n’oubliez pas de faire" in msg.content.lower():
-                    try:
-                        await msg.delete()
-                    except:
-                        pass
-                    break
+        # Supprimer anciens rappels
+        async for msg in message.channel.history(limit=50):
+            if msg.author == bot.user and "bump" in msg.content.lower():
+                try:
+                    await msg.delete()
+                except:
+                    pass
+                break
 
     await bot.process_commands(message)
 
 # =======================
-# STATUS COMMAND
+# Commande STATUS
 # =======================
 @bot.command()
 async def status(ctx):
@@ -129,11 +147,10 @@ async def status(ctx):
         return
 
     now = datetime.now()
-    elapsed = now - last_bump_time
-    seconds = int(elapsed.total_seconds())
+    elapsed = int((now - last_bump_time).total_seconds())
 
-    TOTAL_WAIT = 7200  # ⏳ 2 heures = 7200 secondes
-    remaining = max(0, TOTAL_WAIT - seconds)
+    TOTAL = 7200  # 2 heures
+    remaining = max(0, TOTAL - elapsed)
 
     embed = discord.Embed(
         title="📊 Statut du Bot",
@@ -141,14 +158,20 @@ async def status(ctx):
     )
 
     embed.add_field(
-        name="Dernier bump détecté il y a :",
-        value=f"{seconds} secondes",
+        name="⏱ Dernier bump :",
+        value=f"Il y a **{format_time(elapsed)}**",
         inline=False
     )
 
     embed.add_field(
-        name="Temps avant le prochain rappel :",
-        value=f"{remaining} secondes",
+        name="⌛ Temps restant :",
+        value=f"**{format_time(remaining)}**",
+        inline=False
+    )
+
+    embed.add_field(
+        name="📉 Progression :",
+        value=progress_bar(elapsed, TOTAL),
         inline=False
     )
 
@@ -156,11 +179,10 @@ async def status(ctx):
     embed.add_field(name="État :", value=state)
 
     embed.set_footer(text="Le timer se déclenche automatiquement quand Disboard confirme /bump")
+
     await ctx.send(embed=embed)
 
 # =======================
 # Lancement
 # =======================
 bot.run(TOKEN)
-
-
