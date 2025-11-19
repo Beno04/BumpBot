@@ -95,12 +95,17 @@ PROBOT_ID = 282859044593598464
 
 @bot.event
 async def on_message(message):
-    global last_bump_time
-
-    # On ignore les messages du bot lui-même
-    if message.author.id == bot.user.id:
-        await bot.process_commands(message)
-        return
+    if message.content.startswith("/top"):
+        channel = bot.get_channel(CHANNEL_ID)
+        if isinstance(channel, discord.TextChannel):
+            embed = discord.Embed(
+                title="⏳ Timer lancé",
+                description="Le bot attend la réponse de **ProBot**...\n"
+                            "Le rappel sera envoyé **2 minutes après** la confirmation.",
+                color=0x5865F2
+            )
+            embed.set_footer(text="En attente du résultat du /top")
+            await channel.send(embed=embed)  # ✅ ici c'est OK
 
     # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
     # (Ton bot annonce "Prochain top dans 2min")
@@ -189,6 +194,7 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
 
 
 
