@@ -104,10 +104,9 @@ async def on_message(message):
 
     # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
     # (Ton bot annonce "Prochain top dans 2min")
-    if message.content.startswith("/top"):
-        channel = bot.get_channel(CHANNEL_ID)
+if message.content.startswith("/top"):
+    channel = bot.get_channel(CHANNEL_ID)
     if isinstance(channel, discord.TextChannel):
-
         embed = discord.Embed(
             title="⏳ Timer lancé",
             description="Le bot attend la réponse de **ProBot**...\n"
@@ -118,8 +117,6 @@ async def on_message(message):
 
         await channel.send(embed=embed)
 
-    await bot.process_commands(message)
-    return
 
 
     # ========== CAS 2 : PROBOT ENVOIE SON RÉSULTAT ==========
@@ -192,6 +189,7 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
 
 
 
