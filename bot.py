@@ -24,8 +24,8 @@ Thread(target=run).start()
 # Bot
 # =======================
 TOKEN = os.environ["TOKEN"]
-CHANNEL_ID = 1431277019668156486
-OWNER_ROLE_ID = 1411777383996063834
+CHANNEL_ID = 1430468986558091277
+ADMIN_ROLE_ID = 1430468984343363739
 DISBOARD_ID = 302050872383242240
 
 intents = discord.Intents.default()
@@ -68,7 +68,7 @@ async def bump_scheduler():
             await asyncio.sleep(5)
             continue
 
-        next_run = last_bump_time + timedelta(minutes=2)
+        next_run = last_bump_time + timedelta(hours=2)
         now = datetime.now()
         wait_seconds = (next_run - now).total_seconds()
 
@@ -76,7 +76,7 @@ async def bump_scheduler():
             await asyncio.sleep(wait_seconds)
 
         # Envoi du rappel
-        await channel.send(f"⏰ N’oubliez pas de faire **/bump** <@&{OWNER_ROLE_ID}> !")
+        await channel.send(f"⏰ N’oubliez pas de faire **/bump** <@&{ADMIN_ROLE_ID}> !")
 
         # Reset après envoi
         last_bump_time = None
@@ -148,3 +148,4 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
