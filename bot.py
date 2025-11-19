@@ -35,7 +35,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 scheduler_started = False
 last_bump_time = None
-top_pending = False  # Indique si on attend la confirmation de ProBot
 
 # =======================
 # READY
@@ -63,7 +62,7 @@ async def bump_scheduler():
         print("Erreur channel invalide.")
         return
 
-    global last_bump_time, top_pending
+    global last_bump_time
 
     while True:
         if last_bump_time is None:
@@ -82,7 +81,6 @@ async def bump_scheduler():
 
         # Reset après envoi
         last_bump_time = None
-        top_pending = False
         await asyncio.sleep(5)
 
 # =======================
@@ -90,57 +88,28 @@ async def bump_scheduler():
 # =======================
 @bot.event
 async def on_message(message):
-    global last_bump_time, top_pending
+    global last_bump_time
 
-    # Ignorer les messages du bot
+    # Ignorer les messages du bot lui-même
     if message.author.id == bot.user.id:
         await bot.process_commands(message)
         return
 
-    # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
-    if message.content.startswith("/top"):
-        channel = bot.get_channel(CHANNEL_ID)
-        if isinstance(channel, discord.TextChannel):
-            embed = discord.Embed(
-                title="⏳ Timer lancé",
-                description="Le bot attend la réponse de **ProBot**...\n"
-                            "Le rappel sera envoyé **2 minutes après** la confirmation.",
-                color=0x5865F2
-            )
-            embed.set_footer(text="En attente du résultat du /top")
-            await channel.send(embed=embed)
+    # ========== CAS 2 : PROBOT ENVOIE UN MESSAGE DANS LE SALON ==========
+    if message.author.id == PROBOT_ID and message.channel.id == CHANNEL_ID:
+        last_bump_time = datetime.now()
+        print("✔ ProBot a envoyé un message, timer démarré !")
 
-            # Timer en attente
-            last_bump_time = datetime.now()
-            top_pending = True
+        # Supprimer d'éventuels anciens rappels
+        if isinstance(message.channel, discord.TextChannel):
+            async for msg in message.channel.history(limit=50):
+                if msg.author == bot.user and "n’oubliez pas de faire" in msg.content.lower():
+                    try:
+                        await msg.delete()
+                    except:
+                        pass
+                    break
 
-    # ========== CAS 2 : PROBOT ENVOIE SON RÉSULTAT ==========
-    if message.author.id == PROBOT_ID:
-        if message.embeds:
-            embed = message.embeds[0]
-            text_content = ""
-            if embed.title:
-                text_content += embed.title.lower()
-            if embed.description:
-                text_content += " " + embed.description.lower()
-
-            # Détection robuste
-            if any(keyword in text_content for keyword in ["top", "rank", "invite"]):
-                print("✔ ProBot a confirmé le /top, timer mis à jour.")
-                last_bump_time = datetime.now()
-                top_pending = False
-
-                channel = message.channel
-                if isinstance(channel, discord.TextChannel):
-                    async for msg in channel.history(limit=50):
-                        if msg.author == bot.user and "n’oubliez pas de faire" in msg.content.lower():
-                            try:
-                                await msg.delete()
-                            except:
-                                pass
-                            break
-
-    # Toujours traiter les commandes
     await bot.process_commands(message)
 
 # =======================
@@ -148,12 +117,12 @@ async def on_message(message):
 # =======================
 @bot.command()
 async def status(ctx):
-    global last_bump_time, top_pending
+    global last_bump_time
 
     if last_bump_time is None:
         embed = discord.Embed(
             title="📊 Statut du Bot",
-            description="Aucun `/top` n'a encore été détecté.",
+            description="Aucun /top n'a encore été détecté ou ProBot n'a pas encore envoyé de message.",
             color=0xED4245
         )
         embed.add_field(name="État", value="🔴 Inactif")
@@ -167,13 +136,13 @@ async def status(ctx):
 
     embed = discord.Embed(
         title="📊 Statut du Bot",
-        color=0xFEE75C if top_pending else 0x57F287
+        color=0x57F287
     )
-    embed.add_field(name="Dernier /top détecté il y a :", value=f"{seconds} secondes", inline=False)
+    embed.add_field(name="Dernier bump détecté il y a :", value=f"{seconds} secondes", inline=False)
     embed.add_field(name="Temps avant le prochain rappel :", value=f"{remaining} secondes", inline=False)
-    embed.add_field(name="État :", value="🟡 En attente de confirmation ProBot" if top_pending else "🟢 Prêt pour le prochain /top")
-    embed.set_footer(text="Utilisez /top avec ProBot pour relancer le timer")
+    embed.add_field(name="État :", value="🟢 Prêt pour le prochain rappel")
 
+    embed.set_footer(text="Le timer se déclenche automatiquement à l'envoi de ProBot")
     await ctx.send(embed=embed)
 
 # =======================
