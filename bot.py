@@ -35,6 +35,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 scheduler_started = False
 last_bump_time = None
+top_pending = False  # Pour savoir si on attend ProBot
 
 # =======================
 # READY
@@ -62,11 +63,11 @@ async def bump_scheduler():
         print("Erreur channel invalide.")
         return
 
-    global last_bump_time
+    global last_bump_time, top_pending
 
     while True:
         if last_bump_time is None:
-            await asyncio.sleep(30)
+            await asyncio.sleep(5)
             continue
 
         next_run = last_bump_time + timedelta(minutes=2)
@@ -74,14 +75,14 @@ async def bump_scheduler():
         wait_seconds = (next_run - now).total_seconds()
 
         if wait_seconds > 0:
-            print(f"Rappel prévu pour {next_run}")
             await asyncio.sleep(wait_seconds)
 
-        # Envoi du rappel
+        # Envoi du rappel uniquement si le /top a été confirmé ou en attente
         await channel.send(f"⏰ N’oubliez pas de faire **/bump** <@&{OWNER_ROLE_ID}> !")
 
         # On reset pour ne pas spam
         last_bump_time = None
+        top_pending = False
         await asyncio.sleep(5)
 
 # =======================
@@ -89,7 +90,7 @@ async def bump_scheduler():
 # =======================
 @bot.event
 async def on_message(message):
-    global last_bump_time
+    global last_bump_time, top_pending
 
     # On ignore les messages du bot lui-même
     if message.author.id == bot.user.id:
@@ -109,6 +110,10 @@ async def on_message(message):
             embed.set_footer(text="En attente du résultat du /top")
             await channel.send(embed=embed)
 
+            # On met le timer en attente
+            last_bump_time = datetime.now()
+            top_pending = True
+
     # ========== CAS 2 : PROBOT ENVOIE SON RÉSULTAT ==========
     if message.author.id == PROBOT_ID:
         if message.embeds:
@@ -117,9 +122,11 @@ async def on_message(message):
             description = (embed.description or "").lower()
             if any(keyword in title for keyword in ["top", "rank", "invite"]) or \
                any(keyword in description for keyword in ["top", "rank", "invite"]):
-                print("✔ ProBot a confirmé le /top, timer lancé.")
+                print("✔ ProBot a confirmé le /top, timer mis à jour.")
                 last_bump_time = datetime.now()
+                top_pending = False
 
+                # Supprime l'ancien rappel
                 channel = message.channel
                 if isinstance(channel, discord.TextChannel):
                     async for msg in channel.history(limit=50):
@@ -130,7 +137,6 @@ async def on_message(message):
                                 pass
                             break
 
-    # Toujours traiter les commandes
     await bot.process_commands(message)
 
 # =======================
@@ -138,7 +144,7 @@ async def on_message(message):
 # =======================
 @bot.command()
 async def status(ctx):
-    global last_bump_time
+    global last_bump_time, top_pending
 
     if last_bump_time is None:
         embed = discord.Embed(
@@ -152,22 +158,21 @@ async def status(ctx):
 
     now = datetime.now()
     elapsed = now - last_bump_time
-    seconds = elapsed.total_seconds()
-    remaining = max(0, 120 - int(seconds))  # 2 min = 120 sec
+    seconds = int(elapsed.total_seconds())
+    remaining = max(0, 120 - seconds)  # 2 min = 120 sec
 
     embed = discord.Embed(
         title="📊 Statut du Bot",
-        color=0x57F287 if remaining == 0 else 0xFEE75C
+        color=0xFEE75C if top_pending else 0x57F287
     )
-    embed.add_field(name="Dernier /top détecté il y a :", value=f"{int(seconds)} secondes", inline=False)
+    embed.add_field(name="Dernier /top détecté il y a :", value=f"{seconds} secondes", inline=False)
     embed.add_field(name="Temps avant le prochain rappel :", value=f"{remaining} secondes", inline=False)
-    embed.add_field(name="État :", value="🟢 En attente du prochain rappel" if remaining > 0 else "🟢 Prêt !")
-    embed.set_footer(text="Utilisez /top avec ProBot pour relancer le timer")
+    embed.add_field(name="État :", value="🟡 En attente de confirmation ProBot" if top_pending else "🟢 Prêt pour le prochain /top")
 
+    embed.set_footer(text="Utilisez /top avec ProBot pour relancer le timer")
     await ctx.send(embed=embed)
 
 # =======================
 # Lancement
 # =======================
 bot.run(TOKEN)
-
