@@ -105,7 +105,7 @@ async def on_message(message):
     # ========== CAS 1 : UN OWNER ENVOIE LA COMMANDE /top ==========
     # (Ton bot annonce "Prochain top dans 2min")
     if message.content.startswith("/top"):
-    channel = bot.get_channel(CHANNEL_ID)
+        channel = bot.get_channel(CHANNEL_ID)
     if isinstance(channel, discord.TextChannel):
 
         embed = discord.Embed(
@@ -192,6 +192,7 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
 
 
 
