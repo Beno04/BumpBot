@@ -97,7 +97,7 @@ async def on_message(message):
 
     if not message.author.bot and hasattr(message.author, "roles"):
         if any(role.id == OWNER_ROLE_ID for role in message.author.roles):
-            if "/bump" in message.content.lower():
+            if "/top" in message.content.lower():
 
                 # ⏱️ Timer de 2 minutes démarré
                 last_bump_time = datetime.now()
@@ -114,3 +114,4 @@ async def on_message(message):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
