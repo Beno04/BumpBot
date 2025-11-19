@@ -77,7 +77,7 @@ async def bump_scheduler():
             await asyncio.sleep(30)
             continue
 
-        next_run = last_bump_time + timedelta(hours=2)
+        next_run = last_bump_time + timedelta(minute=2)
         now = datetime.now()
 
         # Plage horaire (pas avant 8h)
@@ -121,3 +121,4 @@ async def on_message(message):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
