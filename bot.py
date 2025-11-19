@@ -32,10 +32,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Empêche le scheduler d'être lancé en double
 scheduler_started = False
-
-# Dernier bump
 last_bump_time = None
 
 
@@ -48,7 +45,6 @@ async def on_ready():
 
     print(f"Connecté en tant que {bot.user}")
 
-    # N’EXÉCUTE LE SCHEDULER QU’UNE SEULE FOIS
     if not scheduler_started:
         print("Lancement du scheduler bump...")
         scheduler_started = True
@@ -71,32 +67,23 @@ async def bump_scheduler():
     global last_bump_time
 
     while True:
-
-        # Si aucun bump n'a été fait, on attend
         if last_bump_time is None:
             await asyncio.sleep(30)
             continue
 
-        next_run = last_bump_time + timedelta(minute=2)
+        next_run = last_bump_time + timedelta(minutes=2)
         now = datetime.now()
 
-        # Plage horaire (pas avant 8h)
-        if next_run.hour < 8:
-            next_run = next_run.replace(hour=8, minute=0, second=0)
-
         wait_seconds = (next_run - now).total_seconds()
+
         if wait_seconds > 0:
             print(f"Rappel prévu pour {next_run}")
             await asyncio.sleep(wait_seconds)
 
-        # On renvoie UNE SEULE fois
-        current_hour = datetime.now().hour
-        if 8 <= current_hour < 24:
-            owner = f"<@&{OWNER_ROLE_ID}>"
-            admin = f"<@&{ADMIN_ROLE_ID}>"
-            await channel.send(f"⏰ N’oubliez pas de faire **/bump** {owner} {admin} !")
+        # Envoi du rappel
+        await channel.send(f"⏰ N’oubliez pas de faire **/bump** <@&{OWNER_ROLE_ID}> !")
 
-        # Empêche l'envoi multiple
+        # On reset pour ne pas spam
         last_bump_time = None
         await asyncio.sleep(5)
 
@@ -109,10 +96,16 @@ async def on_message(message):
     global last_bump_time
 
     if not message.author.bot and hasattr(message.author, "roles"):
-        if any(role.id in [OWNER_ROLE_ID] for role in message.author.roles):
+        if any(role.id == OWNER_ROLE_ID for role in message.author.roles):
             if "/bump" in message.content.lower():
+
+                # ⏱️ Timer de 2 minutes démarré
                 last_bump_time = datetime.now()
                 print("Bump détecté, timer relancé.")
+
+                # 📢 Message d’annonce
+                channel = bot.get_channel(CHANNEL_ID)
+                await channel.send("⏳ **Prochain bump dans 2 minutes...**")
 
     await bot.process_commands(message)
 
@@ -121,4 +114,3 @@ async def on_message(message):
 # Lancement
 # =======================
 bot.run(TOKEN)
-
