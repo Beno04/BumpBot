@@ -146,6 +146,9 @@ async def on_message(message):
 async def status(ctx):
     global last_bump_time
 
+    now = datetime.now()
+
+    # AUCUN BUMP ENREGISTRÉ
     if last_bump_time is None:
         embed = discord.Embed(
             title="📊 Statut du Bot",
@@ -156,10 +159,8 @@ async def status(ctx):
         await ctx.send(embed=embed)
         return
 
-    now = datetime.now()
     elapsed = int((now - last_bump_time).total_seconds())
-
-    TOTAL = 7200  # 2 heures
+    TOTAL = 7200  # 2h
     remaining = max(0, TOTAL - elapsed)
 
     embed = discord.Embed(
@@ -185,10 +186,18 @@ async def status(ctx):
         inline=False
     )
 
-    state = "🟢 Timer en cours" if remaining > 0 else "🟢 Prêt pour un nouveau bump"
-    embed.add_field(name="État :", value=state)
+    # ==========================
+    # 🟡 CAS SPÉCIAL : INTERRUPTION
+    # ==========================
+    if remaining <= 0 and (0 <= now.hour < 8):
+        state_text = "🟡 Interruption de service (00h–08h)"
+        note_text = "Le rappel sera automatiquement envoyé à **08h00**."
+    else:
+        state_text = "🟢 Timer en cours" if remaining > 0 else "🟢 Prêt pour un nouveau bump"
+        note_text = "Le timer se déclenche automatiquement quand Disboard confirme /bump"
 
-    embed.set_footer(text="Le timer se déclenche automatiquement quand Disboard confirme /bump")
+    embed.add_field(name="État :", value=state_text)
+    embed.set_footer(text=note_text)
 
     await ctx.send(embed=embed)
 
@@ -196,3 +205,4 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
