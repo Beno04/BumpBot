@@ -96,9 +96,9 @@ async def bump_scheduler():
 
         # 🔒 Restriction : pas de messages entre 00h00 et 08h00
         now = datetime.now()
-        if 11 <= now.hour < 13 :
+        if 0 <= now.hour < 8 :
             print("⏸ Rappel retardé (entre 00h et 08h). Envoi à 08h00.")
-            next_morning = now.replace(hour=13, minute=0, second=0, microsecond=0)
+            next_morning = now.replace(hour=8, minute=0, second=0, microsecond=0)
             wait_more = (next_morning - now).total_seconds()
             if wait_more > 0:
                 await asyncio.sleep(wait_more)
@@ -204,5 +204,6 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
 
 
