@@ -70,7 +70,7 @@ async def on_ready():
         print("Scheduler déjà actif, ignoré.")
 
 # =======================
-# SCHEDULER (2h)
+# SCHEDULER (2h) + restriction 00h–08h
 # =======================
 async def bump_scheduler():
     await bot.wait_until_ready()
@@ -94,6 +94,16 @@ async def bump_scheduler():
         if wait_seconds > 0:
             await asyncio.sleep(wait_seconds)
 
+        # 🔒 Restriction : pas de messages entre 00h00 et 08h00
+        now = datetime.now()
+        if 11 <= now.hour < 13 :
+            print("⏸ Rappel retardé (entre 00h et 08h). Envoi à 08h00.")
+            # Calcul du délai jusqu'à 08:00
+            next_morning = now.replace(hour=8, minute=0, second=0, microsecond=0)
+            wait_more = (next_morning - now).total_seconds()
+            if wait_more > 0:
+                await asyncio.sleep(wait_more)
+
         # Envoi du rappel
         await channel.send(f"⏰ N’oubliez pas de faire **/bump** <@&{ADMIN_ROLE_ID}> !")
 
@@ -113,7 +123,7 @@ async def on_message(message):
         await bot.process_commands(message)
         return
 
-    # Détection du bump de Disboard
+    # Détection du bump Disboard
     if message.author.id == DISBOARD_ID and message.channel.id == CHANNEL_ID:
         last_bump_time = datetime.now()
         print("✔ Disboard a bump, timer démarré !")
