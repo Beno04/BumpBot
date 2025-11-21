@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import asyncio
 from datetime import datetime, timedelta
+import pytz
 import os
 from flask import Flask
 from threading import Thread
@@ -34,6 +35,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 scheduler_started = False
 last_bump_time = None
+
+# Fuseau horaire France
+paris_tz = pytz.timezone("Europe/Paris")
 
 # =======================
 # Formatage du temps
@@ -70,7 +74,7 @@ async def on_ready():
         print("Scheduler déjà actif, ignoré.")
 
 # =======================
-# SCHEDULER (2h) + restriction 00h–08h
+# SCHEDULER (2h) + restriction 00h–08h FR
 # =======================
 async def bump_scheduler():
     await bot.wait_until_ready()
@@ -88,18 +92,22 @@ async def bump_scheduler():
             continue
 
         next_run = last_bump_time + timedelta(hours=2)
-        now = datetime.now()
-        wait_seconds = (next_run - now).total_seconds()
+        now_utc = datetime.now()
+        wait_seconds = (next_run - now_utc).total_seconds()
 
         if wait_seconds > 0:
             await asyncio.sleep(wait_seconds)
 
-        # 🔒 Restriction : pas de messages entre 00h00 et 08h00
-        now = datetime.now()
-        if 0 <= now.hour < 8 :
-            print("⏸ Rappel retardé (entre 00h et 08h). Envoi à 08h00.")
-            next_morning = now.replace(hour=8, minute=0, second=0, microsecond=0)
-            wait_more = (next_morning - now).total_seconds()
+        # Récupérer heure France
+        now_fr = datetime.now(paris_tz)
+
+        # 🔒 Restriction : pas de messages entre 00h00 et 08h00 FR
+        if 0 <= now_fr.hour < 8:
+            print("⏸ Rappel retardé (entre 00h et 08h FR). Envoi à 08h00 FR.")
+
+            next_morning = now_fr.replace(hour=8, minute=0, second=0, microsecond=0)
+            wait_more = (next_morning - now_fr).total_seconds()
+
             if wait_more > 0:
                 await asyncio.sleep(wait_more)
 
@@ -117,7 +125,6 @@ async def bump_scheduler():
 async def on_message(message):
     global last_bump_time
 
-    # Ignorer le bot
     if message.author.id == bot.user.id:
         await bot.process_commands(message)
         return
@@ -145,7 +152,7 @@ async def on_message(message):
 async def status(ctx):
     global last_bump_time
 
-    now = datetime.now()
+    now_fr = datetime.now(paris_tz)
 
     # AUCUN BUMP ENREGISTRÉ
     if last_bump_time is None:
@@ -158,7 +165,7 @@ async def status(ctx):
         await ctx.send(embed=embed)
         return
 
-    elapsed = int((now - last_bump_time).total_seconds())
+    elapsed = int((datetime.now() - last_bump_time).total_seconds())
     TOTAL = 7200  # 2h
     remaining = max(0, TOTAL - elapsed)
 
@@ -185,12 +192,10 @@ async def status(ctx):
         inline=False
     )
 
-    # ==========================
-    # 🟡 CAS SPÉCIAL : INTERRUPTION
-    # ==========================
-    if remaining <= 0 and (0 <= now.hour < 8):
-        state_text = "🟡 Interruption de service (00h–08h)"
-        note_text = "Le rappel sera automatiquement envoyé à **08h00**."
+    # 🔒 Interruption 00h–08h FR
+    if remaining <= 0 and (0 <= now_fr.hour < 8):
+        state_text = "🟡 Interruption de service (00h–08h FR)"
+        note_text = "Le rappel sera automatiquement envoyé à **08h00 heure française**."
     else:
         state_text = "🟢 Timer en cours" if remaining > 0 else "🟢 Prêt pour un nouveau bump"
         note_text = "Le timer se déclenche automatiquement quand Disboard confirme /bump"
@@ -204,6 +209,3 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
-
-
-
