@@ -103,7 +103,7 @@ async def bump_scheduler():
 
         # 🔒 Restriction : pas de messages entre 00h00 et 08h00 FR
         if 0 <= now_fr.hour < 8:
-            print("⏸ Rappel retardé (entre 00h et 08h FR). Envoi à 08h00 FR.")
+            print("⏸ Rappel retardé (entre 00h et 08h). Envoi à 08h00.")
 
             next_morning = now_fr.replace(hour=8, minute=0, second=0, microsecond=0)
             wait_more = (next_morning - now_fr).total_seconds()
@@ -194,8 +194,8 @@ async def status(ctx):
 
     # 🔒 Interruption 00h–08h FR
     if remaining <= 0 and (0 <= now_fr.hour < 8):
-        state_text = "🟡 Interruption de service (00h–08h FR)"
-        note_text = "Le rappel sera automatiquement envoyé à **08h00 heure française**."
+        state_text = "🟡 Interruption de service (00h–08h)"
+        note_text = "Le rappel sera automatiquement envoyé à **08h00**."
     else:
         state_text = "🟢 Timer en cours" if remaining > 0 else "🟢 Prêt pour un nouveau bump"
         note_text = "Le timer se déclenche automatiquement quand Disboard confirme /bump"
@@ -209,3 +209,4 @@ async def status(ctx):
 # Lancement
 # =======================
 bot.run(TOKEN)
+
